@@ -1,0 +1,158 @@
+<form class="application-form" [formGroup]="form" (ngSubmit)="onSubmit()">
+  <h2>Suivi de Candidature</h2>
+
+  <!-- Informations principales -->
+  <mat-form-field appearance="outline">
+    <mat-label>Pays</mat-label>
+    <mat-select formControlName="country">
+      <mat-option *ngFor="let c of countries" [value]="c">{{ c }}</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Entreprise</mat-label>
+    <input matInput formControlName="companyName" required />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Poste</mat-label>
+    <input matInput formControlName="jobTitle" required />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Lien de l’offre</mat-label>
+    <input matInput formControlName="jobLink" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Date de publication</mat-label>
+    <input matInput [matDatepicker]="picker1" formControlName="publicationDate" />
+    <mat-datepicker-toggle matSuffix [for]="picker1"></mat-datepicker-toggle>
+    <mat-datepicker #picker1></mat-datepicker>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Date de candidature</mat-label>
+    <input matInput [matDatepicker]="picker2" formControlName="applicationDate" />
+    <mat-datepicker-toggle matSuffix [for]="picker2"></mat-datepicker-toggle>
+    <mat-datepicker #picker2></mat-datepicker>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Statut</mat-label>
+    <mat-select formControlName="status" required>
+      <mat-option *ngFor="let s of statuses" [value]="s">{{ s }}</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <h3>Contacts</h3>
+
+  <!-- Noms -->
+  <div class="form-chip-field">
+    <label class="chip-label">Noms</label>
+    <mat-chip-grid #chipNames>
+      <mat-chip *ngFor="let name of names.controls; let i = index" (removed)="removeItem(names, i)">
+        {{ name.value }}
+        <button matChipRemove><mat-icon>cancel</mat-icon></button>
+      </mat-chip>
+      <input
+        placeholder="Ajouter un nom"
+        [matChipInputFor]="chipNames"
+        [matChipInputSeparatorKeyCodes]="[13,188]"
+        (matChipInputTokenEnd)="addItem(names, $event.value); $event.chipInput!.clear()"
+      />
+    </mat-chip-grid>
+  </div>
+
+  <!-- Emails -->
+    <div class="form-chip-field" [class.invalid]="invalidEmail">
+    <label class="chip-label">Emails</label>
+
+    <mat-chip-grid #chipEmails>
+        <mat-chip *ngFor="let email of emails.controls; let i = index" (removed)="removeItem(emails, i)">
+        {{ email.value }}
+        <button matChipRemove><mat-icon>cancel</mat-icon></button>
+        </mat-chip>
+        <input
+        placeholder="Ajouter un email"
+        [matChipInputFor]="chipEmails"
+        [matChipInputSeparatorKeyCodes]="[13,188]"
+        (matChipInputTokenEnd)="addItem(emails, $event.value); $event.chipInput!.clear()"
+        />
+    </mat-chip-grid>
+    </div>
+
+  <!-- Domaines -->
+    <div class="form-chip-field" [class.invalid]="invalidDomain">
+    <label class="chip-label">Domaines</label>
+
+    <mat-chip-grid #chipDomains>
+        <mat-chip *ngFor="let domain of domains.controls; let i = index" (removed)="removeItem(domains, i)">
+        {{ domain.value }}
+        <button matChipRemove><mat-icon>cancel</mat-icon></button>
+        </mat-chip>
+        <input
+        placeholder="@entreprise.com"
+        [matChipInputFor]="chipDomains"
+        [matChipInputSeparatorKeyCodes]="[13,188]"
+        (matChipInputTokenEnd)="addItem(domains, $event.value); $event.chipInput!.clear()"
+        />
+    </mat-chip-grid>
+    </div>
+
+  <!-- Téléphones -->
+    <div class="form-chip-field" [class.invalid]="invalidPhone">
+    <label class="chip-label">Téléphones</label>
+
+    <mat-chip-grid #chipPhones>
+        <mat-chip *ngFor="let phone of phones.controls; let i = index" (removed)="removeItem(phones, i)">
+        {{ phone.value }}
+        <button matChipRemove><mat-icon>cancel</mat-icon></button>
+        </mat-chip>
+        <input
+        placeholder="+33 6 12 34 56 78"
+        [matChipInputFor]="chipPhones"
+        [matChipInputSeparatorKeyCodes]="[13,188]"
+        (matChipInputTokenEnd)="addItem(phones, $event.value); $event.chipInput!.clear()"
+        />
+    </mat-chip-grid>
+    </div>
+
+  <!-- Dates de suivi -->
+  <div class="form-chip-field">
+    <label class="chip-label">Dates de suivi</label>
+
+    <mat-chip-grid #chipDates>
+      <mat-chip
+        *ngFor="let dateCtrl of followUpDates.controls; let i = index"
+        (removed)="removeFollowUpDate(i)"
+      >
+        {{ dateCtrl.value | date:'dd/MM/yyyy' }}
+        <button matChipRemove><mat-icon>cancel</mat-icon></button>
+      </mat-chip>
+      <input hidden [matChipInputFor]="chipDates" [matChipInputSeparatorKeyCodes]="[13,188]" />
+    </mat-chip-grid>
+
+    <div class="add-date">
+      <input
+        matInput
+        #followUpInput
+        [matDatepicker]="pickerShared"
+        placeholder="Ajouter une date"
+        (dateChange)="onDateSelected($event, followUpInput)"
+      />
+      <mat-datepicker-toggle matSuffix [for]="pickerShared"></mat-datepicker-toggle>
+      <mat-datepicker #pickerShared></mat-datepicker>
+    </div>
+  </div>
+
+  <!-- Fichiers envoyés -->
+  <mat-form-field appearance="outline">
+    <mat-label>Fichiers envoyés</mat-label>
+    <mat-select formControlName="sentFiles" multiple>
+      <mat-option *ngFor="let file of availableFiles" [value]="file">{{ file }}</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <button mat-raised-button color="primary" type="submit">Enregistrer</button>
+</form>
