@@ -25,11 +25,10 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
-import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import * as countriesLib from 'i18n-iso-countries';
 import * as frLocale from 'i18n-iso-countries/langs/fr.json';
-
 
 export const FR_DATE_FORMATS: MatDateFormats = {
   parse: { dateInput: 'dd/MM/yyyy' },
@@ -40,6 +39,8 @@ export const FR_DATE_FORMATS: MatDateFormats = {
     monthYearA11yLabel: 'MMMM yyyy',
   },
 };
+
+type CountryOption = { code: string; name: string };
 
 @Component({
   selector: 'app-application-form',
@@ -55,7 +56,7 @@ export const FR_DATE_FORMATS: MatDateFormats = {
     MatButtonModule,
     MatIconModule,
     MatChipsModule,
-    MatDialogModule
+    MatDialogModule,
   ],
   templateUrl: './application-form.html',
   styleUrls: ['./application-form.scss'],
@@ -64,17 +65,17 @@ export const FR_DATE_FORMATS: MatDateFormats = {
     { provide: MAT_DATE_FORMATS, useValue: FR_DATE_FORMATS },
   ],
 })
-
-
-
 export class ApplicationForm {
   private fb = inject(FormBuilder);
+
   today = new Date();
+
+  // messages d’erreur pour les chips
   invalidEmail: string | null = null;
   invalidDomain: string | null = null;
   invalidPhone: string | null = null;
 
-
+  // listes statiques
   statuses = ['Envoyée', 'En attente', 'Entretien prévu', 'Refus', 'Offre reçue'];
   availableFiles = [
     'CV_Junior_Dev.pdf',
@@ -82,27 +83,32 @@ export class ApplicationForm {
     'Portfolio.pdf',
     'Références.pdf',
   ];
-  countries: { code: string; name: string }[] = []; 
 
+  // pays
+  countries: CountryOption[] = [];
+  filteredCountries: CountryOption[] = [];
 
   constructor(
     private dateAdapter: DateAdapter<Date>,
     private dialog: MatDialog
   ) {
     this.dateAdapter.setLocale('fr-FR');
-    countriesLib.registerLocale(frLocale);
-    
+
+    // pays ISO en français
+    countriesLib.registerLocale(frLocale as any);
     const names = countriesLib.getNames('fr');
+
     this.countries = Object.entries(names).map(([code, name]) => ({
       code,
       name,
     }));
 
+    this.filteredCountries = this.countries;
   }
-  
 
+  // Form principal
   form = this.fb.group({
-    country: this.fb.control('France'),
+    country: this.fb.control('FR'), // on stocke le code ISO2
     companyName: this.fb.control('', Validators.required),
     jobTitle: this.fb.control('', Validators.required),
     jobLink: this.fb.control(''),
@@ -124,27 +130,34 @@ export class ApplicationForm {
     sentFiles: this.fb.control<string[]>([]),
   });
 
-  // Getters
+  // Getters pratiques
   get contacts(): FormGroup {
     return this.form.get('contacts') as FormGroup;
   }
+
   get names(): FormArray<FormControl<string>> {
     return this.contacts.get('names') as FormArray<FormControl<string>>;
   }
+
   get emails(): FormArray<FormControl<string>> {
     return this.contacts.get('emails') as FormArray<FormControl<string>>;
   }
+
   get domains(): FormArray<FormControl<string>> {
     return this.contacts.get('domains') as FormArray<FormControl<string>>;
   }
+
   get phones(): FormArray<FormControl<string>> {
     return this.contacts.get('phones') as FormArray<FormControl<string>>;
   }
+
   get followUpDates(): FormArray<FormControl<Date>> {
     return this.form.get('followUpDates') as FormArray<FormControl<Date>>;
   }
 
-  // Chips helpers
+  // ----------------------
+  // Gestion des chips
+  // ----------------------
   addItem(array: FormArray<FormControl<string>>, value: string) {
     const trimmed = value?.trim();
     if (!trimmed) return;
@@ -153,64 +166,53 @@ export class ApplicationForm {
     const isDomainArray = array === this.domains;
     const isPhoneArray = array === this.phones;
 
-    const emailRegex = /^[\w\.-]+@([\w-]+\.)+[\w-]{2,}$/;
+    const emailRegex = /^[\w.-]+@([\w-]+\.)+[\w-]{2,}$/;
     const domainRegex = /^([\w-]+\.)+[\w-]{2,}$/;
-    const phoneRegex =
-      /^(\+?\d{1,3}[\s.-]?)?(\(?\d{1,4}\)?[\s.-]?)?(\d[\s.-]?){6,10}\d$/;
 
-    // --- Validation Email ---
+    // ---- Email ----
     if (isEmailArray && !emailRegex.test(trimmed)) {
       this.invalidEmail = trimmed;
       setTimeout(() => (this.invalidEmail = null), 2500);
       return;
     }
 
-    // --- Validation Domaine ---
+    // ---- Domaine ----
     if (isDomainArray && !domainRegex.test(trimmed)) {
       this.invalidDomain = trimmed;
       setTimeout(() => (this.invalidDomain = null), 2500);
       return;
     }
 
-    // --- Validation Téléphone ---
-  if (isPhoneArray) {
+    // ---- Téléphone ----
+    if (isPhoneArray) {
+      const selectedCountryCode = (this.form.get('country')?.value as string) || 'FR';
 
-    const selectedCountry = this.form.get('country')?.value || 'France';
-    const countryMap: Record<string, string> = {
-      France: 'FR',
-      Belgique: 'BE',
-      Suisse: 'CH',
-      Canada: 'CA',
-      Allemagne: 'DE',
-    };
-    const defaultRegion = countryMap[selectedCountry] || 'FR';
+      const phoneNumber = parsePhoneNumberFromString(trimmed, {
+        defaultCountry: selectedCountryCode as any,
+      });
 
-    const phoneNumber = parsePhoneNumberFromString(trimmed, { defaultCountry: defaultRegion as any });
-    
-    if (!phoneNumber || !phoneNumber.isValid()) {
-      this.invalidPhone = trimmed;
-      setTimeout(() => (this.invalidPhone = null), 2500);
-      return;
+      if (!phoneNumber || !phoneNumber.isValid()) {
+        this.invalidPhone = trimmed;
+        setTimeout(() => (this.invalidPhone = null), 2500);
+        return;
+      }
+
+      const formatted = phoneNumber.formatInternational();
+      const country = phoneNumber.country || selectedCountryCode;
+      console.log(`📞 Numéro valide (${country}):`, formatted);
+
+      if (!array.value.includes(formatted)) {
+        array.push(this.fb.control(formatted, { nonNullable: true }));
+      }
+      return; // on sort ici, on ne passe pas dans la partie "générique"
     }
 
-    // Normalise le numéro en format international (+33...)
-    const formatted = phoneNumber.formatInternational();
-    const country = phoneNumber.country || 'Inconnu';
-    console.log(`📞 Numéro valide (${country}):`, formatted);
-
-    // Empêche les doublons
-    if (!array.value.includes(formatted)) {
-      array.push(this.fb.control(formatted, { nonNullable: true }));
-    }
-    return;
-  }
-
-    // --- Ajout de l’élément principal ---
+    // ---- Ajout générique (noms, domaines, emails déjà validés) ----
     if (!array.value.includes(trimmed)) {
       array.push(this.fb.control(trimmed, { nonNullable: true }));
     }
 
-    // --- Si c’est un email valide, ajoute son domaine automatiquement ---
+    // ---- Si email : ajout auto du domaine ----
     if (isEmailArray) {
       const domain = trimmed.substring(trimmed.lastIndexOf('@') + 1);
       if (!this.domains.value.includes(domain)) {
@@ -219,18 +221,19 @@ export class ApplicationForm {
     }
   }
 
-
-
-
   removeItem(array: FormArray, index: number) {
     array.removeAt(index);
   }
 
+  // ----------------------
+  // Dates de suivi
+  // ----------------------
   addFollowUpDate(date: Date = this.today) {
     if (!this.followUpDates.value.find((d) => d.getTime() === date.getTime())) {
       this.followUpDates.push(this.fb.control(date, { nonNullable: true }));
     }
   }
+
   removeFollowUpDate(index: number) {
     this.followUpDates.removeAt(index);
   }
@@ -238,17 +241,45 @@ export class ApplicationForm {
   onDateSelected(event: MatDatepickerInputEvent<Date>, input: HTMLInputElement) {
     const date = event.value;
     if (date) this.addFollowUpDate(date);
-    input.value = ''; // vide le champ après sélection
+    input.value = '';
   }
 
+  // ----------------------
+  // Pays (drapeau + recherche)
+  // ----------------------
   countryFlag(code: string): string {
     if (!code) return '';
-    // code ISO2 -> emoji (FR -> 🇫🇷)
     return code
       .toUpperCase()
       .replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
   }
 
+  onCountrySearch(term: string) {
+    const value = term.toLowerCase().trim();
+    if (!value) {
+      this.filteredCountries = this.countries;
+      return;
+    }
+
+    this.filteredCountries = this.countries.filter(
+      (c) =>
+        c.name.toLowerCase().includes(value) ||
+        c.code.toLowerCase().includes(value)
+    );
+  }
+  onCountryOpened(opened: boolean, input?: HTMLInputElement) {
+    if (opened) {
+      setTimeout(() => {
+        input?.focus();
+      });
+    } else {
+      this.filteredCountries = this.countries;
+    }
+  }
+
+  // ----------------------
+  // Soumission du formulaire
+  // ----------------------
   onSubmit() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -257,7 +288,8 @@ export class ApplicationForm {
       this.dialog.open(FeedbackDialog, {
         data: {
           title: 'Erreur',
-          message: 'Le formulaire est incomplet ou contient des erreurs. Merci de vérifier.',
+          message:
+            'Le formulaire est incomplet ou contient des erreurs. Merci de vérifier.',
         },
         width: '350px',
       });
@@ -267,7 +299,7 @@ export class ApplicationForm {
 
     const value = this.form.value;
 
-    // Génération automatique des domaines
+    // Génération automatique des domaines à partir des emails
     const emailDomains = (value.contacts?.emails || [])
       .filter((e) => !!e)
       .map((e) => e.substring(e.lastIndexOf('@') + 1))
@@ -282,7 +314,6 @@ export class ApplicationForm {
 
     console.log('✅ Données du formulaire envoyées :', this.form.value);
 
-    // --- ✅ Dialogue de succès
     this.dialog.open(FeedbackDialog, {
       data: {
         title: 'Succès',
@@ -292,18 +323,22 @@ export class ApplicationForm {
     });
 
     this.form.reset({
-      country: 'France',
+      country: 'FR',
       applicationDate: new Date(),
     });
   }
 }
 
-
+// ------------------------------------------------------
+//   Dialog de feedback (succès / erreur)
+// ------------------------------------------------------
 @Component({
   selector: 'app-feedback-dialog',
   standalone: true,
   template: `
-    <h2 mat-dialog-title [class.error]="data.title === 'Erreur'">{{ data.title }}</h2>
+    <h2 mat-dialog-title [class.error]="data.title === 'Erreur'">
+      {{ data.title }}
+    </h2>
     <mat-dialog-content>
       <p>{{ data.message }}</p>
     </mat-dialog-content>
@@ -316,5 +351,3 @@ export class ApplicationForm {
 export class FeedbackDialog {
   constructor(@Inject(MAT_DIALOG_DATA) public data: { title: string; message: string }) {}
 }
-
-
