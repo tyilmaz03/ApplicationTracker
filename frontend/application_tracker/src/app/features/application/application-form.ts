@@ -42,6 +42,16 @@ export const FR_DATE_FORMATS: MatDateFormats = {
 
 type CountryOption = { code: string; name: string };
 
+function validateDateOrder(group: FormGroup) {
+  const pubDate = group.get('publicationDate')?.value;
+  const appDate = group.get('applicationDate')?.value;
+
+  if (pubDate && appDate && pubDate > appDate) {
+    return { invalidDateOrder: true };
+  }
+  return null;
+}
+
 @Component({
   selector: 'app-application-form',
   standalone: true,
@@ -108,7 +118,7 @@ export class ApplicationForm {
 
   // Form principal
   form = this.fb.group({
-    country: this.fb.control('FR'), // on stocke le code ISO2
+    country: this.fb.control('FR'),
     companyName: this.fb.control('', Validators.required),
     jobTitle: this.fb.control('', Validators.required),
     jobLink: this.fb.control(''),
@@ -128,7 +138,11 @@ export class ApplicationForm {
     ]),
 
     sentFiles: this.fb.control<string[]>([]),
-  });
+  },
+  {
+    validators: [validateDateOrder],
+  }
+);
 
   // Getters pratiques
   get contacts(): FormGroup {
@@ -297,20 +311,23 @@ export class ApplicationForm {
       return;
     }
 
-    const value = this.form.value;
+  const contacts = this.contacts.value;
 
-    // Génération automatique des domaines à partir des emails
-    const emailDomains = (value.contacts?.emails || [])
-      .filter((e) => !!e)
-      .map((e) => e.substring(e.lastIndexOf('@') + 1))
-      .filter((d, i, arr) => d && arr.indexOf(d) === i);
+  const emailDomains = (contacts.emails || [])
+    .filter((e: string) => !!e)
+    .map((e: string) => e.substring(e.lastIndexOf('@') + 1))
+    .filter((d: string, i: number, arr: string[]) => d && arr.indexOf(d) === i);
 
-    if (emailDomains.length && (!value.contacts?.domains || !value.contacts.domains[0])) {
-      this.domains.clear();
-      emailDomains.forEach((d) =>
-        this.domains.push(this.fb.control(d, { nonNullable: true }))
-      );
-    }
+  if (
+    emailDomains.length &&
+    (!contacts.domains || !contacts.domains[0])
+  ) {
+    this.domains.clear();
+    emailDomains.forEach((d: string) =>
+      this.domains.push(this.fb.control(d, { nonNullable: true }))
+    );
+  }
+
 
     console.log('✅ Données du formulaire envoyées :', this.form.value);
 
