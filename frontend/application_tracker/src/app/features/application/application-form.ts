@@ -27,6 +27,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogModule } from '@angular/material/dialog';
+import * as countriesLib from 'i18n-iso-countries';
+import * as frLocale from 'i18n-iso-countries/langs/fr.json';
+
 
 export const FR_DATE_FORMATS: MatDateFormats = {
   parse: { dateInput: 'dd/MM/yyyy' },
@@ -61,6 +64,9 @@ export const FR_DATE_FORMATS: MatDateFormats = {
     { provide: MAT_DATE_FORMATS, useValue: FR_DATE_FORMATS },
   ],
 })
+
+
+
 export class ApplicationForm {
   private fb = inject(FormBuilder);
   today = new Date();
@@ -69,7 +75,6 @@ export class ApplicationForm {
   invalidPhone: string | null = null;
 
 
-  countries = ['France', 'Canada', 'Belgique', 'Suisse'];
   statuses = ['Envoyée', 'En attente', 'Entretien prévu', 'Refus', 'Offre reçue'];
   availableFiles = [
     'CV_Junior_Dev.pdf',
@@ -77,13 +82,24 @@ export class ApplicationForm {
     'Portfolio.pdf',
     'Références.pdf',
   ];
+  countries: { code: string; name: string }[] = []; 
+
 
   constructor(
     private dateAdapter: DateAdapter<Date>,
     private dialog: MatDialog
   ) {
     this.dateAdapter.setLocale('fr-FR');
+    countriesLib.registerLocale(frLocale);
+    
+    const names = countriesLib.getNames('fr');
+    this.countries = Object.entries(names).map(([code, name]) => ({
+      code,
+      name,
+    }));
+
   }
+  
 
   form = this.fb.group({
     country: this.fb.control('France'),
@@ -225,6 +241,14 @@ export class ApplicationForm {
     input.value = ''; // vide le champ après sélection
   }
 
+  countryFlag(code: string): string {
+    if (!code) return '';
+    // code ISO2 -> emoji (FR -> 🇫🇷)
+    return code
+      .toUpperCase()
+      .replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
+  }
+
   onSubmit() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -273,6 +297,7 @@ export class ApplicationForm {
     });
   }
 }
+
 
 @Component({
   selector: 'app-feedback-dialog',

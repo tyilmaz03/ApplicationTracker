@@ -2,12 +2,15 @@
   <h2>Suivi de Candidature</h2>
 
   <!-- Informations principales -->
-  <mat-form-field appearance="outline">
+    <mat-form-field appearance="outline">
     <mat-label>Pays</mat-label>
     <mat-select formControlName="country">
-      <mat-option *ngFor="let c of countries" [value]="c">{{ c }}</mat-option>
+        <mat-option *ngFor="let c of countries" [value]="c.code">
+        <span class="flag-emoji">{{ countryFlag(c.code) }}</span>
+        {{ c.name }}
+        </mat-option>
     </mat-select>
-  </mat-form-field>
+    </mat-form-field>
 
   <mat-form-field appearance="outline">
     <mat-label>Entreprise</mat-label>
