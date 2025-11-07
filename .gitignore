@@ -1,0 +1,17 @@
+# Node / Angular
+frontend/application_tracker/node_modules
+frontend/application_tracker/dist
+
+# Maven / Java
+backend/application_tracker/target
+*.log
+
+# IDE / système
+.idea
+.vscode
+*.iml
+.DS_Store
+Thumbs.db
+
+# Docker
+**/.env
