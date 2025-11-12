@@ -16,10 +16,10 @@ COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 8080
 
-ENV DB_HOST=db
-ENV DB_PORT=5432
-ENV DB_NAME=application_tracker
-ENV DB_USER=appuser
-ENV DB_PASSWORD=secretpassword
+ENV DB_HOST=db \
+    DB_PORT=5432 \
+    DB_NAME=application_tracker \
+    DB_USER=appuser \
+    DB_PASSWORD=secretpassword
 
 ENTRYPOINT ["java","-jar","app.jar"]

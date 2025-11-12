@@ -29,6 +29,8 @@ import { MAT_DIALOG_DATA, MatDialog, MatDialogModule } from '@angular/material/d
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import * as countriesLib from 'i18n-iso-countries';
 import * as frLocale from 'i18n-iso-countries/langs/fr.json';
+import { ApplicationService } from './application.service';
+
 
 export const FR_DATE_FORMATS: MatDateFormats = {
   parse: { dateInput: 'dd/MM/yyyy' },
@@ -100,7 +102,8 @@ export class ApplicationForm {
 
   constructor(
     private dateAdapter: DateAdapter<Date>,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private appService: ApplicationService
   ) {
     this.dateAdapter.setLocale('fr-FR');
 
@@ -218,7 +221,7 @@ export class ApplicationForm {
       if (!array.value.includes(formatted)) {
         array.push(this.fb.control(formatted, { nonNullable: true }));
       }
-      return; // on sort ici, on ne passe pas dans la partie "générique"
+      return;
     }
 
     // ---- Ajout générique (noms, domaines, emails déjà validés) ----
@@ -311,39 +314,71 @@ export class ApplicationForm {
       return;
     }
 
-  const contacts = this.contacts.value;
+    // --- Génération automatique des domaines à partir des emails ---
+    const contacts = this.contacts.value;
 
-  const emailDomains = (contacts.emails || [])
-    .filter((e: string) => !!e)
-    .map((e: string) => e.substring(e.lastIndexOf('@') + 1))
-    .filter((d: string, i: number, arr: string[]) => d && arr.indexOf(d) === i);
+    const emailDomains = (contacts.emails || [])
+      .filter((e: string) => !!e)
+      .map((e: string) => e.substring(e.lastIndexOf('@') + 1))
+      .filter((d: string, i: number, arr: string[]) => d && arr.indexOf(d) === i);
 
-  if (
-    emailDomains.length &&
-    (!contacts.domains || !contacts.domains[0])
-  ) {
-    this.domains.clear();
-    emailDomains.forEach((d: string) =>
-      this.domains.push(this.fb.control(d, { nonNullable: true }))
-    );
-  }
+    if (emailDomains.length && (!contacts.domains || !contacts.domains[0])) {
+      this.domains.clear();
+      emailDomains.forEach((d: string) =>
+        this.domains.push(this.fb.control(d, { nonNullable: true }))
+      );
+    }
 
+    // --- Construction du payload pour le backend ---
+    const value = this.form.value;
 
-    console.log('✅ Données du formulaire envoyées :', this.form.value);
+    const payload = {
+      country: value.country!,               
+      companyName: value.companyName!,        
+      jobTitle: value.jobTitle!,              
+      jobLink: value.jobLink || '',
+      publicationDate: value.publicationDate || null,
+      applicationDate: value.applicationDate!, 
+      status: value.status!,                 
+    };
 
-    this.dialog.open(FeedbackDialog, {
-      data: {
-        title: 'Succès',
-        message: 'Votre candidature a bien été enregistrée 🎉',
+    console.log('📤 Payload envoyé à l’API :', payload);
+
+    // --- Appel API vers POST /applications ---
+    this.appService.createApplication(payload).subscribe({
+      next: (response) => {
+        console.log('✅ Application créée :', response);
+
+        this.dialog.open(FeedbackDialog, {
+          data: {
+            title: 'Succès',
+            message: 'Votre candidature a bien été enregistrée 🎉',
+          },
+          width: '350px',
+        });
+
+        // Reset propre du formulaire après succès
+        this.form.reset({
+          country: 'FR',
+          applicationDate: new Date(),
+        });
+
+        this.form.markAsPristine();
+        this.form.markAsUntouched();
       },
-      width: '350px',
-    });
-
-    this.form.reset({
-      country: 'FR',
-      applicationDate: new Date(),
+      error: (err) => {
+        console.error('❌ Erreur API :', err);
+        this.dialog.open(FeedbackDialog, {
+          data: {
+            title: 'Erreur serveur',
+            message: "Impossible d'enregistrer la candidature. Réessayez plus tard.",
+          },
+          width: '350px',
+        });
+      },
     });
   }
+
 }
 
 // ------------------------------------------------------
