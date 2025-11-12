@@ -300,68 +300,81 @@ export class ApplicationForm {
   onSubmit() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      console.warn('❌ Formulaire invalide', this.form.value);
-
       this.dialog.open(FeedbackDialog, {
-        data: {
-          title: 'Erreur',
-          message:
-            'Le formulaire est incomplet ou contient des erreurs. Merci de vérifier.',
-        },
+        data: { title: 'Erreur', message: 'Le formulaire est incomplet ou contient des erreurs.' },
         width: '350px',
       });
-
       return;
     }
 
-    // --- Génération automatique des domaines à partir des emails ---
-    const contacts = this.contacts.value;
-
-    const emailDomains = (contacts.emails || [])
+    // --- garde ta génération auto des domaines à partir des emails ---
+    const contactsValue = this.contacts.value;
+    const emailDomains = (contactsValue.emails || [])
       .filter((e: string) => !!e)
       .map((e: string) => e.substring(e.lastIndexOf('@') + 1))
       .filter((d: string, i: number, arr: string[]) => d && arr.indexOf(d) === i);
 
-    if (emailDomains.length && (!contacts.domains || !contacts.domains[0])) {
+    if (emailDomains.length && (!contactsValue.domains || !contactsValue.domains[0])) {
       this.domains.clear();
       emailDomains.forEach((d: string) =>
         this.domains.push(this.fb.control(d, { nonNullable: true }))
       );
     }
 
-    // --- Construction du payload pour le backend ---
-    const value = this.form.value;
+    const v = this.form.value;
 
     const payload = {
-      country: value.country!,               
-      companyName: value.companyName!,        
-      jobTitle: value.jobTitle!,              
-      jobLink: value.jobLink || '',
-      publicationDate: value.publicationDate || null,
-      applicationDate: value.applicationDate!, 
-      status: value.status!,                 
+      country: v.country!,                 
+      companyName: v.companyName!,
+      jobTitle: v.jobTitle!,
+      jobLink: v.jobLink || '',
+      publicationDate: v.publicationDate || null,
+      applicationDate: v.applicationDate!,  
+      status: v.status!,
+      contacts: {
+        names: this.names.value,
+        emails: this.emails.value,
+        domains: this.domains.value,
+        phones: this.phones.value,
+      },
+      followUpDates: this.followUpDates.value.map(d =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+      ),
+      sentFiles: v.sentFiles ?? [],
     };
 
     console.log('📤 Payload envoyé à l’API :', payload);
 
-    // --- Appel API vers POST /applications ---
     this.appService.createApplication(payload).subscribe({
-      next: (response) => {
-        console.log('✅ Application créée :', response);
-
+      next: (res) => {
+        console.log('✅ Application créée :', res);
         this.dialog.open(FeedbackDialog, {
-          data: {
-            title: 'Succès',
-            message: 'Votre candidature a bien été enregistrée 🎉',
-          },
+          data: { title: 'Succès', message: 'Votre candidature a bien été enregistrée 🎉' },
           width: '350px',
         });
-
-        // Reset propre du formulaire après succès
         this.form.reset({
           country: 'FR',
           applicationDate: new Date(),
+          publicationDate: null,
+          status: '',
+          companyName: '',
+          jobTitle: '',
+          jobLink: '',
+          sentFiles: [],
+          contacts: {
+            names: [],
+            emails: [],
+            domains: [],
+            phones: [],
+          },
+          followUpDates: [],
         });
+
+        this.names.clear();
+        this.emails.clear();
+        this.domains.clear();
+        this.phones.clear();
+        this.followUpDates.clear();
 
         this.form.markAsPristine();
         this.form.markAsUntouched();
@@ -369,10 +382,7 @@ export class ApplicationForm {
       error: (err) => {
         console.error('❌ Erreur API :', err);
         this.dialog.open(FeedbackDialog, {
-          data: {
-            title: 'Erreur serveur',
-            message: "Impossible d'enregistrer la candidature. Réessayez plus tard.",
-          },
+          data: { title: 'Erreur serveur', message: "Impossible d'enregistrer la candidature." },
           width: '350px',
         });
       },
