@@ -1,15 +1,26 @@
 <div class="table-header">
   <h2>Mes candidatures</h2>
 
-  <mat-form-field appearance="outline" class="filter">
-    <mat-label>Filtrer</mat-label>
-    <input
-      matInput
-      placeholder="Rechercher (entreprise, poste, pays, statut)"
-      (keyup)="applyFilter($event.target.value)"
-    />
-  </mat-form-field>
-</div>
+  <div class="header-actions">
+    <button
+      mat-raised-button
+      color="primary"
+      type="button"
+      (click)="goToNewApplication()"
+    >
+      + Nouvelle candidature
+    </button>
+
+      <mat-form-field appearance="outline" class="filter">
+        <mat-label>Filtrer</mat-label>
+        <input
+          matInput
+          placeholder="Rechercher (entreprise, poste, pays, statut)"
+          (keyup)="applyFilter($event.target.value)"
+        />
+      </mat-form-field>
+    </div>
+  </div>
 
 <div class="table-wrapper">
 

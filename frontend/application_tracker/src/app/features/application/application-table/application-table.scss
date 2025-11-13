@@ -32,3 +32,9 @@
   z-index: 1;
   pointer-events: none;
 }
+
+.header-actions { 
+  display:flex; 
+  gap:12px; 
+  align-items:center; 
+}

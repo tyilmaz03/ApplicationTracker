@@ -4,13 +4,13 @@ import { ApplicationTable } from './features/application/application-table/appli
 
 export const routes: Routes = [
   {
-    path: 'application/new',
-    component: ApplicationForm,
-  },
-  {
     path: '',
     pathMatch: 'full',
-    redirectTo: 'application/new',
+    redirectTo: 'applications',
+  },
+  {
+    path: 'application/new',
+    component: ApplicationForm,
   },
   { path: 'applications', component: ApplicationTable },
 

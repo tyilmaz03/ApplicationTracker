@@ -34,9 +34,12 @@ import {
   MAT_DIALOG_DATA,
   MatDialog,
   MatDialogModule,
+  MatDialogRef,
 } from '@angular/material/dialog';
 
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
+import { Router } from '@angular/router';
+
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import * as countriesLib from 'i18n-iso-countries';
 import * as frLocale from 'i18n-iso-countries/langs/fr.json';
@@ -97,17 +100,16 @@ export class ApplicationForm {
   private readonly dateAdapter = inject<DateAdapter<Date>>(DateAdapter);
   private readonly dialog = inject(MatDialog);
   private readonly appService = inject(ApplicationService);
+  private readonly router = inject(Router);
 
   readonly separatorKeysCodes = [ENTER, COMMA];
 
   readonly today = new Date();
 
-  // messages d’erreur pour les chips
   invalidEmail: string | null = null;
   invalidDomain: string | null = null;
   invalidPhone: string | null = null;
 
-  // listes statiques
   readonly statuses: string[] = [
     'Envoyée',
     'En attente',
@@ -123,14 +125,12 @@ export class ApplicationForm {
     'Références.pdf',
   ];
 
-  // pays
   countries: CountryOption[] = [];
   filteredCountries: CountryOption[] = [];
 
   constructor() {
     this.dateAdapter.setLocale('fr-FR');
 
-    // pays ISO en français
     countriesLib.registerLocale(frLocale as unknown as countriesLib.LocaleData);
     const names = countriesLib.getNames('fr') as Record<string, string>;
 
@@ -142,50 +142,40 @@ export class ApplicationForm {
     this.filteredCountries = this.countries;
   }
 
-  // ------------ FORM REACTIF (typé) ------------
-
   form = this.fb.group(
     {
       country: this.fb.control<string>('FR', {
         nonNullable: true,
       }),
-
       companyName: this.fb.control<string>('', {
         nonNullable: true,
         validators: [Validators.required],
       }),
-
       jobTitle: this.fb.control<string>('', {
         nonNullable: true,
         validators: [Validators.required],
       }),
-
       jobLink: this.fb.control<string>('', {
         nonNullable: true,
       }),
-
       publicationDate: this.fb.control<Date | null>(this.today),
       applicationDate: this.fb.control<Date>(this.today, {
         nonNullable: true,
         validators: [Validators.required],
       }),
-
       status: this.fb.control<string>('', {
         nonNullable: true,
         validators: [Validators.required],
       }),
-
       contacts: this.fb.group({
         names: this.fb.array<FormControl<string>>([]),
         emails: this.fb.array<FormControl<string>>([]),
         domains: this.fb.array<FormControl<string>>([]),
         phones: this.fb.array<FormControl<string>>([]),
       }),
-
       followUpDates: this.fb.array<FormControl<Date>>([
         this.fb.control(this.today, { nonNullable: true }),
       ]),
-
       sentFiles: this.fb.control<string[]>([], { nonNullable: true }),
     },
     {
@@ -193,34 +183,26 @@ export class ApplicationForm {
     }
   );
 
-  // ------------ Getters pratiques / typés ------------
-
   get contacts(): FormGroup {
     return this.form.get('contacts') as FormGroup;
   }
-
   get names(): FormArray<FormControl<string>> {
     return this.contacts.get('names') as FormArray<FormControl<string>>;
   }
-
   get emails(): FormArray<FormControl<string>> {
     return this.contacts.get('emails') as FormArray<FormControl<string>>;
   }
-
   get domains(): FormArray<FormControl<string>> {
     return this.contacts.get('domains') as FormArray<FormControl<string>>;
   }
-
   get phones(): FormArray<FormControl<string>> {
     return this.contacts.get('phones') as FormArray<FormControl<string>>;
   }
-
   get followUpDates(): FormArray<FormControl<Date>> {
     return this.form.get('followUpDates') as FormArray<FormControl<Date>>;
   }
 
-  // ------------ Gestion des chips (noms, emails, domaines, téléphones) ------------
-
+  // --- chips (identique à ta version, je laisse tel quel) ---
   addItem(array: FormArray<FormControl<string>>, raw: string) {
     const trimmed = raw?.trim();
     if (!trimmed) return;
@@ -232,21 +214,18 @@ export class ApplicationForm {
     const emailRegex = /^[\w.-]+@([\w-]+\.)+[\w-]{2,}$/;
     const domainRegex = /^([\w-]+\.)+[\w-]{2,}$/;
 
-    // ---- Email ----
     if (isEmailArray && !emailRegex.test(trimmed)) {
       this.invalidEmail = trimmed;
       setTimeout(() => (this.invalidEmail = null), 2500);
       return;
     }
 
-    // ---- Domaine ----
     if (isDomainArray && !domainRegex.test(trimmed)) {
       this.invalidDomain = trimmed;
       setTimeout(() => (this.invalidDomain = null), 2500);
       return;
     }
 
-    // ---- Téléphone ----
     if (isPhoneArray) {
       const selectedCountryCode = this.form.get('country')!.value || 'FR';
 
@@ -270,12 +249,10 @@ export class ApplicationForm {
       return;
     }
 
-    // ---- Ajout générique (noms, domaines, emails déjà validés) ----
     if (!array.value.includes(trimmed)) {
       array.push(this.fb.control(trimmed, { nonNullable: true }));
     }
 
-    // ---- Si email : ajout auto du domaine ----
     if (isEmailArray) {
       const domain = trimmed.substring(trimmed.lastIndexOf('@') + 1);
       if (!this.domains.value.includes(domain)) {
@@ -287,8 +264,6 @@ export class ApplicationForm {
   removeItem(array: FormArray, index: number) {
     array.removeAt(index);
   }
-
-  // ------------ Dates de suivi ------------
 
   addFollowUpDate(date: Date = this.today) {
     const exists = this.followUpDates.value.some(
@@ -311,8 +286,6 @@ export class ApplicationForm {
     if (date) this.addFollowUpDate(date);
     input.value = '';
   }
-
-  // ------------ Pays (drapeau + recherche) ------------
 
   countryFlag(code: string): string {
     if (!code) return '';
@@ -343,14 +316,41 @@ export class ApplicationForm {
     }
   }
 
-  // ------------ Soumission du formulaire ------------
-
   private toYMD(date: Date | null | undefined): string | null {
     if (!date) return null;
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
+  }
+
+  private resetFormAfterSuccess(): void {
+    this.form.reset({
+      country: 'FR',
+      companyName: '',
+      jobTitle: '',
+      jobLink: '',
+      publicationDate: null,
+      applicationDate: this.today,
+      status: '',
+      contacts: {
+        names: [],
+        emails: [],
+        domains: [],
+        phones: [],
+      },
+      followUpDates: [],
+      sentFiles: [],
+    });
+
+    this.names.clear();
+    this.emails.clear();
+    this.domains.clear();
+    this.phones.clear();
+    this.followUpDates.clear();
+
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
   }
 
   onSubmit() {
@@ -366,10 +366,8 @@ export class ApplicationForm {
       return;
     }
 
-    
     const v = this.form.getRawValue();
 
-    // Génération des domaines à partir des emails si besoin
     if (!this.domains.length && this.emails.length) {
       const emailDomains = this.emails.value
         .filter((e) => !!e)
@@ -405,41 +403,22 @@ export class ApplicationForm {
     this.appService.createApplication(payload).subscribe({
       next: (res) => {
         console.log('✅ Application créée :', res);
-        this.dialog.open(FeedbackDialog, {
+
+        const dialogRef = this.dialog.open(ApplicationSuccessDialog, {
           data: {
             title: 'Succès',
             message: 'Votre candidature a bien été enregistrée 🎉',
           },
-          width: '350px',
+          width: '380px',
         });
 
-       
-        this.form.reset({
-          country: 'FR',
-          companyName: '',
-          jobTitle: '',
-          jobLink: '',
-          publicationDate: null,
-          applicationDate: this.today,
-          status: '',
-          contacts: {
-            names: [],
-            emails: [],
-            domains: [],
-            phones: [],
-          },
-          followUpDates: [],
-          sentFiles: [],
+        dialogRef.afterClosed().subscribe((action) => {
+          if (action === 'new') {
+            this.resetFormAfterSuccess();
+          } else if (action === 'list') {
+            this.router.navigate(['/applications']);
+          }
         });
-
-        this.names.clear();
-        this.emails.clear();
-        this.domains.clear();
-        this.phones.clear();
-        this.followUpDates.clear();
-
-        this.form.markAsPristine();
-        this.form.markAsUntouched();
       },
       error: (err) => {
         console.error('❌ Erreur API :', err);
@@ -455,9 +434,7 @@ export class ApplicationForm {
   }
 }
 
-// ------------------------------------------------------
-//   Dialog de feedback (succès / erreur)
-// ------------------------------------------------------
+// ---- Dialog simple pour les erreurs ----
 @Component({
   selector: 'app-feedback-dialog',
   standalone: true,
@@ -465,11 +442,9 @@ export class ApplicationForm {
     <h2 mat-dialog-title [class.error]="data.title === 'Erreur'">
       {{ data.title }}
     </h2>
-
     <mat-dialog-content>
       <p>{{ data.message }}</p>
     </mat-dialog-content>
-
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close color="primary">Fermer</button>
     </mat-dialog-actions>
@@ -478,4 +453,41 @@ export class ApplicationForm {
 })
 export class FeedbackDialog {
   readonly data = inject<{ title: string; message: string }>(MAT_DIALOG_DATA);
+}
+
+// ---- Dialog succès ---
+@Component({
+  selector: 'app-application-success-dialog',
+  standalone: true,
+  template: `
+    <h2 mat-dialog-title>
+      {{ data.title }}
+    </h2>
+
+    <mat-dialog-content>
+      <p>{{ data.message }}</p>
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end">
+      <button mat-stroked-button (click)="onAddNew()">
+        Ajouter une autre candidature
+      </button>
+      <button mat-raised-button color="primary" (click)="onGoToList()">
+        Retour à la liste
+      </button>
+    </mat-dialog-actions>
+  `,
+  imports: [MatDialogModule, MatButtonModule],
+})
+export class ApplicationSuccessDialog {
+  readonly data = inject<{ title: string; message: string }>(MAT_DIALOG_DATA);
+  private readonly dialogRef = inject(MatDialogRef<ApplicationSuccessDialog>);
+
+  onAddNew(): void {
+    this.dialogRef.close('new');
+  }
+
+  onGoToList(): void {
+    this.dialogRef.close('list');
+  }
 }

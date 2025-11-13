@@ -29,6 +29,8 @@ import {
   MatProgressSpinnerModule,
 } from '@angular/material/progress-spinner';
 
+import { Router } from '@angular/router';
+
 import {
   ApplicationService,
   ApplicationResponse,
@@ -84,6 +86,7 @@ export class ApplicationTable implements OnInit {
   }
 
   private readonly applicationService = inject(ApplicationService);
+  private readonly router = inject(Router);
 
   ngOnInit(): void {
     // Filtre custom (company / job / country / status)
@@ -115,5 +118,9 @@ export class ApplicationTable implements OnInit {
     if (this.dataSource.paginator) {
       this.dataSource.paginator.firstPage();
     }
+  }
+
+    goToNewApplication(): void {
+    this.router.navigate(['/application/new']);
   }
 }
