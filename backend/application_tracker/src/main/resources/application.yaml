@@ -1,6 +1,7 @@
 spring:
   application:
     name: application_tracker
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:db}:${DB_PORT:5432}/${DB_NAME:application_tracker}
     username: ${DB_USER:appuser}
@@ -17,3 +18,12 @@ spring:
 
 server:
   port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      show-details: always     
