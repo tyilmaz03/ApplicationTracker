@@ -1,7 +1,6 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-
 
 export interface ContactsDTO {
   names: string[];
@@ -17,9 +16,9 @@ export interface ApplicationRequest {
   jobLink?: string;
   publicationDate?: string | null;
   applicationDate: string;
-  status: string;
+  status: string;   
   contacts: ContactsDTO;
-  followUpDates: string[];
+  followUpDates: string[];  
   sentFiles: string[];
 }
 
@@ -29,11 +28,18 @@ export interface ApplicationResponse extends ApplicationRequest {
 
 @Injectable({ providedIn: 'root' })
 export class ApplicationService {
-  private apiUrl = '/api/applications';
 
-  constructor(private http: HttpClient) {}
+  private readonly apiUrl = '/api/applications';
 
-  createApplication(request: ApplicationRequest): Observable<ApplicationResponse> {
+  private readonly http = inject(HttpClient);
+
+  createApplication(
+    request: ApplicationRequest
+  ): Observable<ApplicationResponse> {
     return this.http.post<ApplicationResponse>(this.apiUrl, request);
+  }
+
+  getAll(): Observable<ApplicationResponse[]> {
+    return this.http.get<ApplicationResponse[]>(this.apiUrl);
   }
 }

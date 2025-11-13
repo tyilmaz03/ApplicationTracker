@@ -96,22 +96,6 @@
         max-width: 180px;
       }
     }
-
-    button[mat-icon-button] {
-      align-self: flex-start;
-      margin-top: 4px;
-      background-color: #f3f6f9;
-      border-radius: 50%;
-      transition: background-color 0.2s;
-
-      &:hover {
-        background-color: #e3f2fd;
-      }
-
-      mat-icon {
-        font-size: 20px;
-      }
-    }
   }
 
   .form-chip-field.invalid {
@@ -150,45 +134,8 @@
   }
 }
 
-/* Style du dialog de feedback */
-::ng-deep .mat-mdc-dialog-surface {
-  border-radius: 12px;
-}
-
-::ng-deep .mat-mdc-dialog-container {
-  padding: 0;
-}
-
-::ng-deep h2.mat-mdc-dialog-title {
-  font-weight: 600;
-  color: #2e7d32;
-
-  &.error {
-    color: #c62828;
-  }
-}
-
-::ng-deep mat-dialog-content p {
-  margin: 0;
-  padding: 8px 0;
-  font-size: 0.95rem;
-  color: #333;
-}
-
-::ng-deep mat-dialog-actions {
-  padding: 0 16px 16px;
-}
-
 /* Drapeaux emoji dans la liste de pays */
 .flag-emoji {
   margin-right: 8px;
   font-size: 1.1rem;
-}
-
-/* Input de recherche dans le select pays */
-::ng-deep .mat-mdc-select-panel input[matInput] {
-  width: 100%;
-  padding: 4px 8px;
-  box-sizing: border-box;
-  font-size: 14px;
 }

@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
-import { ApplicationForm } from './features/application/application-form';
+import { ApplicationForm } from './features/application/application-form/application-form';
+import { ApplicationTable } from './features/application/application-table/application-table';
 
 export const routes: Routes = [
   {
@@ -11,5 +12,7 @@ export const routes: Routes = [
     pathMatch: 'full',
     redirectTo: 'application/new',
   },
+  { path: 'applications', component: ApplicationTable },
+
 
 ];

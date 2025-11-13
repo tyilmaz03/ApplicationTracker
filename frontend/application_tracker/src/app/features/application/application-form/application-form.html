@@ -2,31 +2,31 @@
   <h2>Suivi de Candidature</h2>
 
   <!-- Informations principales -->
-    <mat-form-field appearance="outline">
+  <mat-form-field appearance="outline">
     <mat-label>Pays</mat-label>
     <mat-select
-        formControlName="country"
-        (openedChange)="onCountryOpened($event, countrySearchInput)"
+      formControlName="country"
+      (openedChange)="onCountryOpened($event, countrySearchInput)"
     >
-        <!-- Champ de recherche en haut du panel -->
-        <mat-option>
+      <!-- Champ de recherche en haut du panel -->
+      <mat-option>
         <input
-            matInput
-            #countrySearchInput
-            placeholder="Rechercher un pays…"
-            (click)="$event.stopPropagation()"
-            (keydown)="$event.stopPropagation()"
-            (keyup)="onCountrySearch($event.target.value)"
+          matInput
+          #countrySearchInput
+          placeholder="Rechercher un pays…"
+          (click)="$event.stopPropagation()"
+          (keydown)="$event.stopPropagation()"
+          (keyup)="onCountrySearch($event.target.value)"
         />
-        </mat-option>
+      </mat-option>
 
-        <!-- Liste filtrée -->
-        <mat-option *ngFor="let c of filteredCountries" [value]="c.code">
+      <!-- Liste filtrée -->
+      <mat-option *ngFor="let c of filteredCountries" [value]="c.code">
         <span class="flag-emoji">{{ countryFlag(c.code) }}</span>
         {{ c.name }}
-        </mat-option>
+      </mat-option>
     </mat-select>
-    </mat-form-field>
+  </mat-form-field>
 
   <mat-form-field appearance="outline">
     <mat-label>Entreprise</mat-label>
@@ -92,7 +92,7 @@
       <input
         placeholder="Ajouter un nom"
         [matChipInputFor]="chipNames"
-        [matChipInputSeparatorKeyCodes]="[13, 188]"
+        [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
         (matChipInputTokenEnd)="addItem(names, $event.value); $event.chipInput!.clear()"
       />
     </mat-chip-grid>
@@ -115,7 +115,7 @@
       <input
         placeholder="Ajouter un email"
         [matChipInputFor]="chipEmails"
-        [matChipInputSeparatorKeyCodes]="[13, 188]"
+        [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
         (matChipInputTokenEnd)="addItem(emails, $event.value); $event.chipInput!.clear()"
       />
     </mat-chip-grid>
@@ -138,7 +138,7 @@
       <input
         placeholder="@entreprise.com"
         [matChipInputFor]="chipDomains"
-        [matChipInputSeparatorKeyCodes]="[13, 188]"
+        [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
         (matChipInputTokenEnd)="addItem(domains, $event.value); $event.chipInput!.clear()"
       />
     </mat-chip-grid>
@@ -161,11 +161,10 @@
       <input
         placeholder="+33 6 12 34 56 78"
         [matChipInputFor]="chipPhones"
-        [matChipInputSeparatorKeyCodes]="[13, 188]"
+        [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
         (matChipInputTokenEnd)="addItem(phones, $event.value); $event.chipInput!.clear()"
       />
     </mat-chip-grid>
-
   </div>
 
   <!-- Dates de suivi -->
@@ -185,7 +184,7 @@
       <input
         hidden
         [matChipInputFor]="chipDates"
-        [matChipInputSeparatorKeyCodes]="[13, 188]"
+        [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
       />
     </mat-chip-grid>
 
@@ -197,7 +196,10 @@
         placeholder="Ajouter une date"
         (dateChange)="onDateSelected($event, followUpInput)"
       />
-      <mat-datepicker-toggle matSuffix [for]="pickerShared"></mat-datepicker-toggle>
+      <mat-datepicker-toggle
+        matSuffix
+        [for]="pickerShared"
+      ></mat-datepicker-toggle>
       <mat-datepicker #pickerShared></mat-datepicker>
     </div>
   </div>

@@ -1,5 +1,8 @@
-import { Component, inject, Inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  inject,
+} from '@angular/core';
 import {
   ReactiveFormsModule,
   FormBuilder,
@@ -8,6 +11,8 @@ import {
   FormControl,
   FormGroup,
 } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+
 import {
   MatDatepickerModule,
   MatDatepickerInputEvent,
@@ -25,12 +30,21 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
-import { MAT_DIALOG_DATA, MatDialog, MatDialogModule } from '@angular/material/dialog';
+import {
+  MAT_DIALOG_DATA,
+  MatDialog,
+  MatDialogModule,
+} from '@angular/material/dialog';
+
+import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import * as countriesLib from 'i18n-iso-countries';
 import * as frLocale from 'i18n-iso-countries/langs/fr.json';
-import { ApplicationService } from './application.service';
 
+import {
+  ApplicationService,
+  ApplicationRequest,
+} from '../application.service';
 
 export const FR_DATE_FORMATS: MatDateFormats = {
   parse: { dateInput: 'dd/MM/yyyy' },
@@ -45,8 +59,8 @@ export const FR_DATE_FORMATS: MatDateFormats = {
 type CountryOption = { code: string; name: string };
 
 function validateDateOrder(group: FormGroup) {
-  const pubDate = group.get('publicationDate')?.value;
-  const appDate = group.get('applicationDate')?.value;
+  const pubDate = group.get('publicationDate')?.value as Date | null;
+  const appDate = group.get('applicationDate')?.value as Date | null;
 
   if (pubDate && appDate && pubDate > appDate) {
     return { invalidDateOrder: true };
@@ -57,6 +71,9 @@ function validateDateOrder(group: FormGroup) {
 @Component({
   selector: 'app-application-form',
   standalone: true,
+  templateUrl: './application-form.html',
+  styleUrls: ['./application-form.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     ReactiveFormsModule,
@@ -70,17 +87,20 @@ function validateDateOrder(group: FormGroup) {
     MatChipsModule,
     MatDialogModule,
   ],
-  templateUrl: './application-form.html',
-  styleUrls: ['./application-form.scss'],
   providers: [
     { provide: MAT_DATE_LOCALE, useValue: 'fr-FR' },
     { provide: MAT_DATE_FORMATS, useValue: FR_DATE_FORMATS },
   ],
 })
 export class ApplicationForm {
-  private fb = inject(FormBuilder);
+  private readonly fb = inject(FormBuilder);
+  private readonly dateAdapter = inject<DateAdapter<Date>>(DateAdapter);
+  private readonly dialog = inject(MatDialog);
+  private readonly appService = inject(ApplicationService);
 
-  today = new Date();
+  readonly separatorKeysCodes = [ENTER, COMMA];
+
+  readonly today = new Date();
 
   // messages d’erreur pour les chips
   invalidEmail: string | null = null;
@@ -88,8 +108,15 @@ export class ApplicationForm {
   invalidPhone: string | null = null;
 
   // listes statiques
-  statuses = ['Envoyée', 'En attente', 'Entretien prévu', 'Refus', 'Offre reçue'];
-  availableFiles = [
+  readonly statuses: string[] = [
+    'Envoyée',
+    'En attente',
+    'Entretien prévu',
+    'Refus',
+    'Offre reçue',
+  ];
+
+  readonly availableFiles: string[] = [
     'CV_Junior_Dev.pdf',
     'Lettre_Motivation.pdf',
     'Portfolio.pdf',
@@ -100,16 +127,12 @@ export class ApplicationForm {
   countries: CountryOption[] = [];
   filteredCountries: CountryOption[] = [];
 
-  constructor(
-    private dateAdapter: DateAdapter<Date>,
-    private dialog: MatDialog,
-    private appService: ApplicationService
-  ) {
+  constructor() {
     this.dateAdapter.setLocale('fr-FR');
 
     // pays ISO en français
-    countriesLib.registerLocale(frLocale as any);
-    const names = countriesLib.getNames('fr');
+    countriesLib.registerLocale(frLocale as unknown as countriesLib.LocaleData);
+    const names = countriesLib.getNames('fr') as Record<string, string>;
 
     this.countries = Object.entries(names).map(([code, name]) => ({
       code,
@@ -119,35 +142,59 @@ export class ApplicationForm {
     this.filteredCountries = this.countries;
   }
 
-  // Form principal
-  form = this.fb.group({
-    country: this.fb.control('FR'),
-    companyName: this.fb.control('', Validators.required),
-    jobTitle: this.fb.control('', Validators.required),
-    jobLink: this.fb.control(''),
-    publicationDate: this.fb.control<Date | null>(this.today),
-    applicationDate: this.fb.control<Date>(this.today, Validators.required),
-    status: this.fb.control('', Validators.required),
+  // ------------ FORM REACTIF (typé) ------------
 
-    contacts: this.fb.group({
-      names: this.fb.array<FormControl<string>>([]),
-      emails: this.fb.array<FormControl<string>>([]),
-      domains: this.fb.array<FormControl<string>>([]),
-      phones: this.fb.array<FormControl<string>>([]),
-    }),
+  form = this.fb.group(
+    {
+      country: this.fb.control<string>('FR', {
+        nonNullable: true,
+      }),
 
-    followUpDates: this.fb.array<FormControl<Date>>([
-      this.fb.control(this.today, { nonNullable: true }),
-    ]),
+      companyName: this.fb.control<string>('', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
 
-    sentFiles: this.fb.control<string[]>([]),
-  },
-  {
-    validators: [validateDateOrder],
-  }
-);
+      jobTitle: this.fb.control<string>('', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
 
-  // Getters pratiques
+      jobLink: this.fb.control<string>('', {
+        nonNullable: true,
+      }),
+
+      publicationDate: this.fb.control<Date | null>(this.today),
+      applicationDate: this.fb.control<Date>(this.today, {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
+
+      status: this.fb.control<string>('', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
+
+      contacts: this.fb.group({
+        names: this.fb.array<FormControl<string>>([]),
+        emails: this.fb.array<FormControl<string>>([]),
+        domains: this.fb.array<FormControl<string>>([]),
+        phones: this.fb.array<FormControl<string>>([]),
+      }),
+
+      followUpDates: this.fb.array<FormControl<Date>>([
+        this.fb.control(this.today, { nonNullable: true }),
+      ]),
+
+      sentFiles: this.fb.control<string[]>([], { nonNullable: true }),
+    },
+    {
+      validators: [validateDateOrder],
+    }
+  );
+
+  // ------------ Getters pratiques / typés ------------
+
   get contacts(): FormGroup {
     return this.form.get('contacts') as FormGroup;
   }
@@ -172,11 +219,10 @@ export class ApplicationForm {
     return this.form.get('followUpDates') as FormArray<FormControl<Date>>;
   }
 
-  // ----------------------
-  // Gestion des chips
-  // ----------------------
-  addItem(array: FormArray<FormControl<string>>, value: string) {
-    const trimmed = value?.trim();
+  // ------------ Gestion des chips (noms, emails, domaines, téléphones) ------------
+
+  addItem(array: FormArray<FormControl<string>>, raw: string) {
+    const trimmed = raw?.trim();
     if (!trimmed) return;
 
     const isEmailArray = array === this.emails;
@@ -202,7 +248,7 @@ export class ApplicationForm {
 
     // ---- Téléphone ----
     if (isPhoneArray) {
-      const selectedCountryCode = (this.form.get('country')?.value as string) || 'FR';
+      const selectedCountryCode = this.form.get('country')!.value || 'FR';
 
       const phoneNumber = parsePhoneNumberFromString(trimmed, {
         defaultCountry: selectedCountryCode as any,
@@ -242,11 +288,13 @@ export class ApplicationForm {
     array.removeAt(index);
   }
 
-  // ----------------------
-  // Dates de suivi
-  // ----------------------
+  // ------------ Dates de suivi ------------
+
   addFollowUpDate(date: Date = this.today) {
-    if (!this.followUpDates.value.find((d) => d.getTime() === date.getTime())) {
+    const exists = this.followUpDates.value.some(
+      (d) => d.getTime() === date.getTime()
+    );
+    if (!exists) {
       this.followUpDates.push(this.fb.control(date, { nonNullable: true }));
     }
   }
@@ -255,15 +303,17 @@ export class ApplicationForm {
     this.followUpDates.removeAt(index);
   }
 
-  onDateSelected(event: MatDatepickerInputEvent<Date>, input: HTMLInputElement) {
+  onDateSelected(
+    event: MatDatepickerInputEvent<Date>,
+    input: HTMLInputElement
+  ) {
     const date = event.value;
     if (date) this.addFollowUpDate(date);
     input.value = '';
   }
 
-  // ----------------------
-  // Pays (drapeau + recherche)
-  // ----------------------
+  // ------------ Pays (drapeau + recherche) ------------
+
   countryFlag(code: string): string {
     if (!code) return '';
     return code
@@ -284,62 +334,69 @@ export class ApplicationForm {
         c.code.toLowerCase().includes(value)
     );
   }
+
   onCountryOpened(opened: boolean, input?: HTMLInputElement) {
     if (opened) {
-      setTimeout(() => {
-        input?.focus();
-      });
+      setTimeout(() => input?.focus());
     } else {
       this.filteredCountries = this.countries;
     }
   }
 
-  // ----------------------
-  // Soumission du formulaire
-  // ----------------------
+  // ------------ Soumission du formulaire ------------
+
+  private toYMD(date: Date | null | undefined): string | null {
+    if (!date) return null;
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
   onSubmit() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       this.dialog.open(FeedbackDialog, {
-        data: { title: 'Erreur', message: 'Le formulaire est incomplet ou contient des erreurs.' },
+        data: {
+          title: 'Erreur',
+          message: 'Le formulaire est incomplet ou contient des erreurs.',
+        },
         width: '350px',
       });
       return;
     }
 
-    // --- garde ta génération auto des domaines à partir des emails ---
-    const contactsValue = this.contacts.value;
-    const emailDomains = (contactsValue.emails || [])
-      .filter((e: string) => !!e)
-      .map((e: string) => e.substring(e.lastIndexOf('@') + 1))
-      .filter((d: string, i: number, arr: string[]) => d && arr.indexOf(d) === i);
+    
+    const v = this.form.getRawValue();
 
-    if (emailDomains.length && (!contactsValue.domains || !contactsValue.domains[0])) {
+    // Génération des domaines à partir des emails si besoin
+    if (!this.domains.length && this.emails.length) {
+      const emailDomains = this.emails.value
+        .filter((e) => !!e)
+        .map((e) => e.substring(e.lastIndexOf('@') + 1))
+        .filter((d, i, arr) => d && arr.indexOf(d) === i);
+
       this.domains.clear();
-      emailDomains.forEach((d: string) =>
+      emailDomains.forEach((d) =>
         this.domains.push(this.fb.control(d, { nonNullable: true }))
       );
     }
 
-    const v = this.form.value;
-
-    const payload = {
-      country: v.country!,                 
-      companyName: v.companyName!,
-      jobTitle: v.jobTitle!,
+    const payload: ApplicationRequest = {
+      country: v.country,
+      companyName: v.companyName,
+      jobTitle: v.jobTitle,
       jobLink: v.jobLink || '',
-      publicationDate: v.publicationDate || null,
-      applicationDate: v.applicationDate!,  
-      status: v.status!,
+      publicationDate: this.toYMD(v.publicationDate),
+      applicationDate: this.toYMD(v.applicationDate)!,
+      status: v.status,
       contacts: {
         names: this.names.value,
         emails: this.emails.value,
         domains: this.domains.value,
         phones: this.phones.value,
       },
-      followUpDates: this.followUpDates.value.map(d =>
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-      ),
+      followUpDates: this.followUpDates.value.map((d) => this.toYMD(d)!),
       sentFiles: v.sentFiles ?? [],
     };
 
@@ -349,18 +406,22 @@ export class ApplicationForm {
       next: (res) => {
         console.log('✅ Application créée :', res);
         this.dialog.open(FeedbackDialog, {
-          data: { title: 'Succès', message: 'Votre candidature a bien été enregistrée 🎉' },
+          data: {
+            title: 'Succès',
+            message: 'Votre candidature a bien été enregistrée 🎉',
+          },
           width: '350px',
         });
+
+       
         this.form.reset({
           country: 'FR',
-          applicationDate: new Date(),
-          publicationDate: null,
-          status: '',
           companyName: '',
           jobTitle: '',
           jobLink: '',
-          sentFiles: [],
+          publicationDate: null,
+          applicationDate: this.today,
+          status: '',
           contacts: {
             names: [],
             emails: [],
@@ -368,6 +429,7 @@ export class ApplicationForm {
             phones: [],
           },
           followUpDates: [],
+          sentFiles: [],
         });
 
         this.names.clear();
@@ -382,13 +444,15 @@ export class ApplicationForm {
       error: (err) => {
         console.error('❌ Erreur API :', err);
         this.dialog.open(FeedbackDialog, {
-          data: { title: 'Erreur serveur', message: "Impossible d'enregistrer la candidature." },
+          data: {
+            title: 'Erreur serveur',
+            message: "Impossible d'enregistrer la candidature.",
+          },
           width: '350px',
         });
       },
     });
   }
-
 }
 
 // ------------------------------------------------------
@@ -401,9 +465,11 @@ export class ApplicationForm {
     <h2 mat-dialog-title [class.error]="data.title === 'Erreur'">
       {{ data.title }}
     </h2>
+
     <mat-dialog-content>
       <p>{{ data.message }}</p>
     </mat-dialog-content>
+
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close color="primary">Fermer</button>
     </mat-dialog-actions>
@@ -411,5 +477,5 @@ export class ApplicationForm {
   imports: [MatDialogModule, MatButtonModule],
 })
 export class FeedbackDialog {
-  constructor(@Inject(MAT_DIALOG_DATA) public data: { title: string; message: string }) {}
+  readonly data = inject<{ title: string; message: string }>(MAT_DIALOG_DATA);
 }
